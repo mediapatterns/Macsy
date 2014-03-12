@@ -1,1 +1,3 @@
-.class
+.svn*
+*.settings
+*.class
