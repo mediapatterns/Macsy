@@ -34,18 +34,21 @@ public class BlackBoard {
 	public static final int		TAG_NOT_FOUND = 0;
 	public static final int		TAG_EXISTS = -1;
 
-	
+	/**
+	 * List of Field Names that shouldn't be altered by API.
+	 */
+	List<String> FINAL_FIELDS; 
 
-	//	public boolean DB_WriteConcern = true; 
+
+//	public boolean DB_WriteConcern = true; 
 	boolean adminMode = false;
 
 	DB mongo_db = null;
-	String BB_NAME = null;	//The name of the BB / or the BB prefix if BB is splitted by year.
+	String BB_NAME = null;
 
-	//YEar to DBCollection or 0 for single Collection Blackboard
 	Map<Integer,DBCollection> collDocs = null;
-	//	DBCollection collDocs = null;	//Assumes one Collection for documents.
-
+//	DBCollection collDocs = null;	//Assumes one Collection for documents.
+	
 	public final static String DOC_ID = "_id";
 	public final static String DOC_TAGS = "Tg"; //binary tags
 	final static String DOC_FOR_TAGS = "FOR"; //binary control tags
@@ -83,15 +86,15 @@ public class BlackBoard {
 	static final String BLACKBOARD_TYPE_STANDARD = "STANDARD";
 	static final String BLACKBOARD_TYPE_DATE_BASED = "DATE_BASED";
 
-
-
+	
+	
 	/**
 	 * Returns Black Board Type. If no BBType is set then the default "STANDARD" is set and returned.
 	 * @param mongo_db
 	 * @param bbName
 	 * @return
 	 */
-	static String getBlackBoardType(DB mongo_db, String bbName, String defaultType)
+	static String getBlackBoardType(DB mongo_db, String bbName)
 	{
 		DBCollection collCounter = mongo_db.getCollection(bbName+"_COUNTER");
 		collCounter.setObjectClass(BasicDBObject.class);
@@ -102,31 +105,27 @@ public class BlackBoard {
 			BasicDBObject query_bbParams = new BasicDBObject();
 			query_bbParams.put( "_id", BLACKBOARD_TYPE);
 			DBObject bbParams = collCounter.findOne( query_bbParams );
-			if(bbParams!=null)
-				bbType = (String) bbParams.get( BLACKBOARD_TYPE );
+			bbType = (String) bbParams.get( BLACKBOARD_TYPE );
 		}
 		catch(Exception e)	//No BlackBoard  - empty - return STANDARD
 		{
 			return BLACKBOARD_TYPE_STANDARD;
 		}
-
+		
+		
 		if(bbType==null)
 		{
-			if(defaultType==null)
-				bbType = BLACKBOARD_TYPE_STANDARD;
-			else
-				bbType = defaultType;
-			
 			BasicDBObject docID = new BasicDBObject();
 			docID.put( "_id", BLACKBOARD_TYPE);
-			docID.put( BLACKBOARD_TYPE, bbType);	//1 is the first ID
-			//			docID.put( "tag_counter", 1);	//1 is the first ID
+			docID.put( BLACKBOARD_TYPE, BLACKBOARD_TYPE_STANDARD);	//1 is the first ID
+//			docID.put( "tag_counter", 1);	//1 is the first ID
 			collCounter.insert( docID );
+			bbType = BLACKBOARD_TYPE_STANDARD;
 		}
-
+		
 		return bbType;
 	}
-
+	
 	/**
 	 * CACHE 
 	 * 
@@ -148,29 +147,6 @@ public class BlackBoard {
 	}
 
 
-	
-	/**
-	 * List of Field Names that shouldn't be altered by API.
-	 */
-	List<String> FINAL_FIELDS; 
-
-	//Stores the hash of a combination of index fields.
-	List<Integer> indexHashes = new ArrayList<Integer>();
-
-	boolean indexHashExists(Integer hashedIndexFields)
-	{
-		return indexHashes.contains(hashedIndexFields);
-	}
-
-	void addIndexHash(Integer hashedIndexFields)
-	{
-		if(!indexHashes.contains(hashedIndexFields)) {
-			indexHashes.add( hashedIndexFields );
-		}
-	}
-
-	
-	
 	/**
 	 * Constructor for the Black Board with given name.
 	 *  
@@ -187,14 +163,17 @@ public class BlackBoard {
 			Object dbConnection,	
 			String blackBoardName, 
 			boolean adminMode  )
-					throws Exception
-					{
+	throws Exception
+	{
 		System.out.println("Initialising "+ blackBoardName+ " Black Board." );
 
 		this.adminMode = adminMode;
 		this.mongo_db = (DB)dbConnection;
 		this.BB_NAME  = blackBoardName;
-
+		
+//		collDocs = new DBCollection[1];
+//		collDocs[0] = mongo_db.getCollection(BB_NAME);
+//		collDocs[0].setObjectClass(BasicDBObject.class);
 		DBCollection singleCollection = mongo_db.getCollection(BB_NAME);
 		singleCollection.setObjectClass(BasicDBObject.class);
 		collDocs = new TreeMap<Integer,DBCollection>();
@@ -207,10 +186,7 @@ public class BlackBoard {
 		collCounter = mongo_db.getCollection(BB_NAME+"_COUNTER");
 		collCounter.setObjectClass(BasicDBObject.class);
 
-		BasicDBObject isThereNextIDQuery = new BasicDBObject();
-		isThereNextIDQuery.put( "_id", NEXT_ID);
-		DBObject isThereNextID = collCounter.findOne(isThereNextIDQuery);
-		if(isThereNextID == null)
+		if(collCounter.count()==0)
 		{
 			BasicDBObject docID = new BasicDBObject();
 			docID.put( "_id", NEXT_ID);
@@ -219,20 +195,17 @@ public class BlackBoard {
 			collCounter.insert( docID );
 		}
 
-		BasicDBObject isThereBlackBoardTypeQuery = new BasicDBObject();
-		isThereBlackBoardTypeQuery.put( "_id", NEXT_ID);
-		DBObject isThereBlackBoardType = collCounter.findOne(isThereBlackBoardTypeQuery);
-		if(isThereBlackBoardType == null)
+		if(collCounter.count()==1)
 		{
 			BasicDBObject docID = new BasicDBObject();
 			docID.put( "_id", BLACKBOARD_TYPE);
 			docID.put( BLACKBOARD_TYPE, BLACKBOARD_TYPE_STANDARD);	//1 is the first ID
-			//			docID.put( "tag_counter", 1);	//1 is the first ID
+//			docID.put( "tag_counter", 1);	//1 is the first ID
 			collCounter.insert( docID );
 		}
 
-
-
+		
+		
 		//MAINTAIN A LIST OF FIELD NAMES THAT SHOULD NOT CHANGE
 		if(FINAL_FIELDS==null)
 			FINAL_FIELDS = new LinkedList<String>();
@@ -254,21 +227,7 @@ public class BlackBoard {
 		collTags.ensureIndex(index, options);
 		//	System.out.println(" DONE in (ms) "+ (System.currentTimeMillis() - bef));
 
-		System.out.print("Checking indexes...");
-		List<String> indexedFields = new LinkedList<String>();
-		indexedFields.add(DOC_TAGS);
-		indexedFields.add(DOC_ID);
-		ensureIndex(indexedFields);
-		
-		indexedFields = new LinkedList<String>();
-		indexedFields.add(DOC_FOR_TAGS);
-		indexedFields.add(DOC_ID);
-		ensureIndex(indexedFields);
-		System.out.println("DONE indexes");
-
-			
-		
-					}
+	}
 
 	/**
 	 * Constructor for the Black Board with given name.
@@ -281,10 +240,10 @@ public class BlackBoard {
 	 * @throws Exception
 	 */
 	public BlackBoard( 	Object dbConnection,	String blackBoardName  )
-			throws Exception
-			{
+	throws Exception
+	{
 		this(dbConnection, blackBoardName, false);
-			}
+	}
 
 
 	/**
@@ -309,21 +268,21 @@ public class BlackBoard {
 		return (int) collTags.getCount();
 	}
 
-	//	/**
-	//	* Checks if doc with specific title exists
-	//	* 
-	//	* Inserts new article.
-	//	* 
-	//	* @param docTitle
-	//	* @param docDate
-	//	* @return Return the docID of the new doc or DOC_EXISTS if the doc is already there.
-	//	* @throws Exception
-	//	*/
-	//	public synchronized Object insertNewDoc(String docTitle, Date docDate) throws Exception 
-	//	{ 
-	//	throw new Exception("Unimplemented");
-	//	//	return null;		// Return the ID of the new article:
-	//	}
+//	/**
+//	* Checks if doc with specific title exists
+//	* 
+//	* Inserts new article.
+//	* 
+//	* @param docTitle
+//	* @param docDate
+//	* @return Return the docID of the new doc or DOC_EXISTS if the doc is already there.
+//	* @throws Exception
+//	*/
+//	public synchronized Object insertNewDoc(String docTitle, Date docDate) throws Exception 
+//	{ 
+//	throw new Exception("Unimplemented");
+//	//	return null;		// Return the ID of the new article:
+//	}
 
 	/**
 	 * Adds a new field to a document.
@@ -393,7 +352,7 @@ public class BlackBoard {
 	 * Adds a tag to a document.
 	 * Tags with prefix FOR are treated as control tags.
 	 * 
-	 * No check to ensure the existence of tag for efficiency reasons
+	 * No check to ensure the existance of tag for efficiency reasons
 	 * 
 	 * @param docID The ID of doc to which the tag will be added.
 	 * @param tagID The ID of the tag.
@@ -401,18 +360,15 @@ public class BlackBoard {
 	 */
 	public void addTagToDoc(Object docID, int tagID) throws Exception 
 	{
-		if(tagID<=0)
-			throw new Exception("TagID should be >0");
-		
-		if(getTagProperty(tagID,TAG_PROPERTY_CONTROL) == -1)
+		if(getTagProperty(tagID,TAG_PROPERTY_CONTROL) == 1)
 		{
 			getCollDocs().update(	new BasicDBObject(DOC_ID, docID),
-					new BasicDBObject("$addToSet", new BasicDBObject(DOC_TAGS, tagID)));
+					new BasicDBObject("$addToSet", new BasicDBObject(DOC_FOR_TAGS, tagID)));
 		}
 		else
 		{
 			getCollDocs().update(	new BasicDBObject(DOC_ID, docID),
-					new BasicDBObject("$addToSet", new BasicDBObject(DOC_FOR_TAGS, tagID)));
+					new BasicDBObject("$addToSet", new BasicDBObject(DOC_TAGS, tagID)));
 		}
 	}
 
@@ -428,34 +384,14 @@ public class BlackBoard {
 	 */
 	public void addTagsToDoc(Object docID, List<Integer> tagIDs) throws Exception 
 	{
-		List<Integer> ctrlTags = new LinkedList<Integer>();
-		List<Integer> normalTags = new LinkedList<Integer>();
-		
-		for(int tagID : tagIDs)
-		{
-			if(tagID<=0)
-				throw new Exception("TagID should be >0");
-			
-			if(getTagProperty(tagID,TAG_PROPERTY_CONTROL) == -1) { 	//NOrmal Tag
-				normalTags.add( tagID );
-			}
-			else {
-				ctrlTags.add( tagID );
-			}
-		}
+		for(int t=0; t<tagIDs.size();t++)
+			if(getTagProperty(tagIDs.get(t),TAG_PROPERTY_CONTROL) != -1)
+				throw new Exception("Can not add Control tags with this function, try with each tag seperatly");
 
-		if(normalTags.size()  > 0) {
-			getCollDocs().update(new BasicDBObject(DOC_ID, docID),
+
+		getCollDocs().update(new BasicDBObject(DOC_ID, docID),
 				new BasicDBObject("$addToSet", new BasicDBObject(DOC_TAGS, 
-						new BasicDBObject("$each", normalTags))));
-		}
-		
-		if(ctrlTags.size() > 0)	{
-			getCollDocs().update(new BasicDBObject(DOC_ID, docID),
-					new BasicDBObject("$addToSet", new BasicDBObject(DOC_FOR_TAGS, 
-							new BasicDBObject("$each", ctrlTags))));
-		}
-		
+						new BasicDBObject("$each", tagIDs))));
 	}
 
 
@@ -502,7 +438,7 @@ public class BlackBoard {
 	 * 
 	 * @param tagID The ID of the tag.
 	 * @param tagPropertyName The name of the property to get.
-	 * @return The property value, or 0 if the property is not set (and saves the 0). 
+	 * @return The property value, or -1 if the property is not set. 
 	 * @throws Exception
 	 */
 	public int getTagProperty(int tagID, String tagPropertyName) throws Exception {
@@ -515,14 +451,12 @@ public class BlackBoard {
 
 		Object propValue = res.get(tagPropertyName);
 
-		if(propValue==null)	 { //Tag found but property not set
-			propValue = -1;
-		}
-		
+		if(propValue==null)
+			propValue = 0;
 
-		//		System.out.println("TagID="+ getTagName(tagID));
-		//		System.out.println("tagProperty="+tagPropertyName);
-		//		System.out.println("Value="+propValue);
+//		System.out.println("TagID="+ getTagName(tagID));
+//		System.out.println("tagProperty="+tagPropertyName);
+//		System.out.println("Value="+propValue);
 		return (Integer)propValue;
 	}
 
@@ -594,9 +528,9 @@ public class BlackBoard {
 		BasicDBObject where = new BasicDBObject();
 		where.put(DOC_ID, docID); 
 		BasicDBObject res = (BasicDBObject) getCollDocs().findOne(where);
-
-		//	System.out.println(where.toString());
-
+		
+	//	System.out.println(where.toString());
+		
 		if(res==null)
 			return DOC_NOT_FOUND;
 
@@ -611,7 +545,7 @@ public class BlackBoard {
 
 
 
-
+	
 
 
 	/*
@@ -705,7 +639,7 @@ public class BlackBoard {
 			throw new Exception("Tag :"+tagName +" already exists.");
 
 
-		//		GENERATE UNIQUE ID
+//		GENERATE UNIQUE ID
 		tagID = (Integer) GenerateUniqueTagID();
 
 		BasicDBObject doc = new BasicDBObject();
@@ -715,11 +649,10 @@ public class BlackBoard {
 		collTags.insert(doc);
 
 		if(tagName.startsWith(CONTROL_TAGS_PREFIX) || tagName.startsWith(CONTROL_TAGS_PREFIX2))
+		{
 			setTagProperty(tagID, TAG_PROPERTY_CONTROL, 1 );
-		else
-			setTagProperty(tagID, TAG_PROPERTY_CONTROL, 0 );
+		}
 
-		
 		return getTagID(tagName);
 	}	
 
@@ -763,15 +696,15 @@ public class BlackBoard {
 		}
 
 		//UPDATE NEXT TAG ID
-
+		
 		DBObject c = collCounter.findOne( new BasicDBObject("_id",NEXT_ID) );
-
+		
 		int nextTagID = ((Integer) c.get("tag_counter")).intValue();
-
+		
 		if(tagID > nextTagID)
 			setTagCounter(tagID + 1);
 
-
+		
 		return getTagID(tagName);
 	}	
 
@@ -785,12 +718,12 @@ public class BlackBoard {
 	{
 		if(adminMode==false)
 			throw new Exception("This function is for admin purposes only.");
-
+	
 		List<DBObject> tags = new LinkedList<DBObject>();
-
+		
 		int maxTagID = 0;
 		int tagID = 0;
-
+		
 		for(int i=0;i<tagNames.size();i++)
 		{
 			tagID = tagIDs.get(i);
@@ -801,13 +734,13 @@ public class BlackBoard {
 			tag.put(TAG_NAME, tagNames.get(i) );
 			tags.add(tag);
 		}
-
+		
 		collTags.insert(tags);
 
 		//UPDATE NEXT TAG ID
 		DBObject c = collCounter.findOne( new BasicDBObject("_id",NEXT_ID) );
 		int nextTagID = ((Integer) c.get("tag_counter")).intValue();
-
+		
 		if(maxTagID > nextTagID)
 			setTagCounter(maxTagID + 1);
 	}	
@@ -825,12 +758,12 @@ public class BlackBoard {
 		BasicDBObject query = new BasicDBObject();
 
 		for(DBCursor cur = getCollDocs().find(query, new BasicDBObject().append(DOC_ID,"1") );
-				cur.hasNext(); )
+		cur.hasNext(); )
 			res.add(  cur.next().get(DOC_ID)  );			
 
 		return res;
 	}
-
+	
 	/**
 	 * Returns all docs in the BlackBoard.
 	 * 
@@ -841,7 +774,7 @@ public class BlackBoard {
 		DBCursor cur = getCollDocs().find();
 		return new BBDocSet(cur);
 	}
-
+	
 
 
 	/**
@@ -893,13 +826,13 @@ public class BlackBoard {
 	public BBDocTagSet getAllTags()  throws Exception
 	{
 		DBCursor cur = collTags.find();
-
+		
 		return new BBDocTagSet(cur);
 	}
-
-
-
-
+	
+	
+	
+	
 	/**
 	 * Removes a field from a document.
 	 * 
@@ -932,29 +865,15 @@ public class BlackBoard {
 			getCollDocs().update(	new BasicDBObject(DOC_ID, docID),
 					new BasicDBObject("$pull",new BasicDBObject(DOC_TAGS, tagID )));
 
-
 	}
 
-
-	/**
-	 * Removes all tags from doc.
-	 * TODO: Improve performance 
-	 * 
-	 * @param docID
-	 * @param tagIDs
-	 * @throws Exception
-	 */
-	public void removeTagsFromDoc(Object docID, List<Integer> tagIDs) throws Exception 	{
-		for(Integer tagID : tagIDs)
-			removeTagFromDoc(docID, tagID);
-	}
-	
 	
 	/**
 	 * Generates a unique Tag ID for inserting new tags
 	 * @return
 	 */
-	synchronized Integer GenerateUniqueTagID() throws Exception	{
+	synchronized Integer GenerateUniqueTagID() throws Exception
+	{
 		DBObject id = collCounter.findAndModify(new BasicDBObject("_id",NEXT_ID), 
 				new BasicDBObject("$inc", new BasicDBObject("tag_counter",1) ));
 
@@ -996,9 +915,9 @@ public class BlackBoard {
 	 */
 	public void ensureIndex(List<String> fieldNames) throws Exception
 	{
-		//if(!adminMode)
-		//	throw new Exception("buildIndex" + BlackBoardsAPI.ERROR_FUNCTION_FOR_ADMIN );	
-
+		if(!adminMode)
+			throw new Exception("buildIndex" + BlackBoardsAPI.ERROR_FUNCTION_FOR_ADMIN );	
+			
 		BasicDBObject index;
 		BasicDBObject options;
 
@@ -1006,16 +925,16 @@ public class BlackBoard {
 		for(String fieldName : fieldNames)
 			System.out.print(fieldName +" ");
 		System.out.println("'on BB " + BB_NAME);
-
+		
 		index = new BasicDBObject();
 		for(String fieldName : fieldNames)
 			index.put(fieldName, 1);
-
+		
 		options = new BasicDBObject();
 		options.put("background",true);
 		getCollDocs().ensureIndex(index, options);
 	}
-
+	
 	/**
 	 * For admin usage only.
 	 * Checks if all indexes are in place.
@@ -1028,7 +947,7 @@ public class BlackBoard {
 			throw new Exception("buildIndex" + BlackBoardsAPI.ERROR_FUNCTION_FOR_ADMIN );	
 
 	}
-
+	
 	/**
 	 * Searches for a document that has a field with a specific value.
 	 * Then search the DB.
@@ -1054,11 +973,11 @@ public class BlackBoard {
 		BasicDBObject res = (BasicDBObject) getCollDocs().findOne(query);
 
 
-		//		NOT FOUND NEITHER IN DB OR CACHE
+//		NOT FOUND NEITHER IN DB OR CACHE
 		if(res==null)
 			return DOC_NOT_FOUND;	
 
-		//		FOUND 
+//		FOUND 
 		lastQueryResult = res;		//SAVE RES TO CACHE
 		return new BBDoc(lastQueryResult);
 	}
@@ -1098,7 +1017,7 @@ public class BlackBoard {
 		return res.get( DOC_ID );
 	}
 
-
+	
 	/**
 	 * Removes the specified field from all documents.
 	 * 
@@ -1137,7 +1056,7 @@ public class BlackBoard {
 					new BasicDBObject("$unset",new BasicDBObject(fieldName, 1 )));
 		}
 	}
-
+	
 	/**
 	 * Searches for a document with specified annotations.
 	 * The order of tags is important for speed: use the more rare tags first and the most frequent last. 
@@ -1157,8 +1076,8 @@ public class BlackBoard {
 			List<Integer> withTags,
 			List<Integer> withoutTags,
 			int maxDocs
-			) throws Exception 
-			{	
+	) throws Exception 
+	{	
 		BasicDBObject query = new  BasicDBObject();
 		if(withFields!=null)
 		{
@@ -1203,56 +1122,9 @@ public class BlackBoard {
 			}
 
 		return res;
-			}
-
-	
-	
-	public BBDocSet findDocIDsByTags( 
-			List<Integer> withTags,
-			int maxDocs
-			) throws Exception 
-			{	
-		BasicDBObject query = new  BasicDBObject();
-		
-		List<Integer> normalTags = new LinkedList<Integer>();
-		List<Integer> ctrlTags = new LinkedList<Integer>();
-		
-		for(int tagID : withTags)
-		{
-			if(getTagProperty(tagID, TAG_PROPERTY_CONTROL)==1)
-				ctrlTags.add( tagID );
-			else
-				normalTags.add(tagID);
-		}
-		
-		if(normalTags.size() > 0)
-		{
-			query.put(DOC_TAGS,new BasicDBObject("$all", normalTags));
-		}
-		
-		if(ctrlTags.size() > 0)
-		{
-			query.put(DOC_FOR_TAGS,new BasicDBObject("$all", ctrlTags));
-		}
-		
-		
-		BasicDBObject return_field = new BasicDBObject().append(DOC_ID, 1);
-
-		
-		
-		DBCursor cur;
-		if(maxDocs>0) 
-			cur = getCollDocs().find(query, return_field).limit( maxDocs ); 
-		else {
-			cur = getCollDocs().find(query, return_field);
-		}
-
-
-
-		return new BBDocSet(cur);
 	}
 
-
+	
 	/**
 	 * Searches for documents that carry the specified tags.
 	 * The order of tags is important for speed: use the more rare tags first and the most frequent last. 
@@ -1268,8 +1140,8 @@ public class BlackBoard {
 			List<Integer> withTags,
 			List<Integer> withoutTags,
 			int maxDocs
-			) throws Exception 
-			{	
+	) throws Exception 
+	{	
 		BasicDBObject query = new  BasicDBObject();
 		if(withTags!=null)
 		{
@@ -1285,19 +1157,17 @@ public class BlackBoard {
 			else
 				query.put(DOC_TAGS, new BasicDBObject("$nin", withoutTags));
 		}
-
-		//System.out.println( query );
+		
+	//	System.out.println( query );
 
 		DBCursor cur = null;
 		if(maxDocs>0)
 			cur = getCollDocs().find(query).limit( maxDocs );
 		else
-			cur = getCollDocs().find(query);
-		
-		System.out.println( cur );
+			cur = getCollDocs().find(query); 
 
 		return new BBDocSet(cur);
-			}
+	}
 
 	/**
 	 * Returns the n=maxDocs docs with highest values in field.
@@ -1312,8 +1182,8 @@ public class BlackBoard {
 	public BBDocSet findDocsOrderedByFieldValue(	
 			String fieldName,
 			int maxDocs
-			) throws Exception 
-			{	
+	) throws Exception 
+	{	
 		//Ensures index...
 		System.out.print("Checking index...");
 		BasicDBObject index = new BasicDBObject();
@@ -1323,7 +1193,7 @@ public class BlackBoard {
 		getCollDocs().ensureIndex(index, options);
 		System.out.println("DONE");
 
-
+		
 		DBCursor cur = null;
 		if(maxDocs>0)
 			cur = getCollDocs().find().sort(new BasicDBObject( fieldName , -1)).limit( maxDocs );
@@ -1331,7 +1201,7 @@ public class BlackBoard {
 			cur = getCollDocs().find().sort(new BasicDBObject( fieldName , -1)); 
 
 		return new BBDocSet(cur);
-			}
+	}
 
 	/**
 	 * Return the docs that are annotated with all specified tags, ordered by fieldName.
@@ -1345,31 +1215,26 @@ public class BlackBoard {
 			List<Integer> withTagIDs,
 			String fieldName,
 			int maxDocs
-			) throws Exception 
-			{	
+	) throws Exception 
+	{	
 		if(withTagIDs == null)
 			throw new Exception("findDocsOrderedByFieldValueHavingTags needs at least one tag");
-
+		
 		//Ensures index...
-		int indexHash = (DOC_TAGS+fieldName).hashCode();
-		if(!indexHashExists(indexHash) ) {
-			System.out.print("Checking index:" + DOC_TAGS +" and " + fieldName);
-			BasicDBObject index = new BasicDBObject();
-			index.put(DOC_TAGS, 1);
-			index.put(fieldName, -1);
-			BasicDBObject options = new BasicDBObject();
-			options.put("background",true);
-			getCollDocs().ensureIndex(index, options);
-			System.out.println("DONE");
-			addIndexHash( indexHash );
-		}
+		System.out.print("Checking index...");
+		BasicDBObject index = new BasicDBObject();
+		index.put(DOC_TAGS, 1);
+		index.put(fieldName, -1);
+		BasicDBObject options = new BasicDBObject();
+		options.put("background",true);
+		getCollDocs().ensureIndex(index, options);
+		System.out.println("DONE");
 
-
-
+		
 		BasicDBObject query = new  BasicDBObject();
-
+		
 		query.put(DOC_TAGS,new BasicDBObject("$all", withTagIDs));
-
+		
 		DBCursor cur = null;
 		if(maxDocs>0)
 			cur = getCollDocs().find(query).sort(new BasicDBObject( fieldName , -1)).limit( maxDocs );
@@ -1377,9 +1242,9 @@ public class BlackBoard {
 			cur = getCollDocs().find(query).sort(new BasicDBObject( fieldName , -1)); 
 
 		return new BBDocSet(cur);
-			}
+	}
 
-
+	
 	/**
 	 * Generates a unique ID for inserting new objects
 	 * @return
@@ -1442,10 +1307,10 @@ public class BlackBoard {
 	{
 		if(!this.getClass().getName().equals("macsy.blackBoardsSystem.BlackBoard") )
 			throw new Exception("Function insertNewDoc() can be used only from BlackBoard class.");
-
+		
 		getCollDocs().insert( doc.dataObject , new WriteConcern(true));
 	}
-
+	
 	/**
 	 * Inserts new docs in Black Board.
 	 * If the doc doesn't have an ID, one is added. The new ID is accessed in doc.
@@ -1459,17 +1324,17 @@ public class BlackBoard {
 
 	public void insertNewDocs(List<BBDoc> docs) throws Exception 
 	{
-		if(!this.getClass().getName().equals("macsy.blackBoardsSystem.BlackBoard") )
+		if(!this.getClass().getName().equals("modacle.blackBoardsSystem.BlackBoard") )
 			throw new Exception("Function insertNewDocs() can be used only from BlackBoard class.");
-
+		
 		List<DBObject> docsData = new ArrayList<DBObject>();
 		for(BBDoc doc : docs)
 			docsData.add(doc.dataObject);
-
+		
 		getCollDocs().insert( docsData , new WriteConcern(true));
 	}
-
-
+	
+	
 	/**
 	 * Returns the number of docs that have all stated tags.
 	 * @param withTags
@@ -1480,7 +1345,7 @@ public class BlackBoard {
 	{
 		if(withTags==null)
 			return this.getNumberOfDocs();
-
+		
 		BasicDBObjectBuilder query = new BasicDBObjectBuilder();
 
 		if(withTags!=null) {
@@ -1504,54 +1369,6 @@ public class BlackBoard {
 
 		getCollDocs().remove( new BasicDBObject(DOC_ID, docID) );
 
-	}
-
-	/**
-	 * Finds a set of docs that contain a list-field named "listFieldName" that contains the value "listFieldValue".
-	 * 
-	 * @param listFieldName : The list of names of the fields of interest.
-	 * @param listFieldValue : The list of values of the fields of interest.
-	 * @param withTagIDs : A list of type  List<Integer> with the IDs of the tags that articles should carry.
-	 * @param withoutTagIDs : A list of type  List<Integer> with the IDs of the tags that articles should not carry.
-	 * @param resSize : The maximum size of articles to return - Max is set to MAX_ARICLEIDS_IN_RESULT_LIST.
-	 * @return A BBDocSet of results.
-	 * @throws Exception
-	 */
-	public BBDocSet findDocsWithFieldNamesAndValues(
-			String listFieldName, 
-			Object listFieldValue,
-			List<Integer> withTagIDs,
-			List<Integer> withoutTagIDs, 
-			int resSize
-	) throws Exception  
-	{
-//		LinkedList<Object> res = new LinkedList<Object>();
-		BasicDBObject query = new BasicDBObject();
-
-		//We want the listFieldName to contain the listFieldValue
-		List<Object> listOfValues = new LinkedList<Object>();
-		listOfValues.add(listFieldValue);
-		query.put( listFieldName, new BasicDBObject("$in",listOfValues));
-		
-
-		if(withTagIDs!=null)
-			query.put(DOC_TAGS,new BasicDBObject("$all",withTagIDs));
-		if(withoutTagIDs!=null)
-			query.put(DOC_TAGS,new BasicDBObject("$nin",withoutTagIDs));
-
-		//System.out.println(query);
-	
-		if(resSize!=0)
-		{
-			DBCursor cur = getCollDocs().find(query).limit(resSize);
-			return new BBDocSet(cur);
-
-		}
-		else
-		{
-			DBCursor cur = getCollDocs().find(query);
-			return new BBDocSet(cur);
-		}
 	}
 
 	
