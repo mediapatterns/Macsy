@@ -17,8 +17,6 @@ import com.mongodb.DBObject;
  */
 public class BBDocSet {
 
-	private final int MONGO_DB_BATCH_SIZE = 50;	//Reduce number if cursor timeout events occur. 
-	
 	/**
 	 * A list of cursor results. 
 	 */
@@ -37,10 +35,8 @@ public class BBDocSet {
 	{
 		this.cursors =  new ArrayList<DBCursor>();
 
-		if(cursor!=null) {
-			cursor.batchSize(MONGO_DB_BATCH_SIZE);
+		if(cursor!=null)
 			cursors.add(cursor);
-		}
 
 		currentCursor = 0;
 	}
@@ -59,23 +55,19 @@ public class BBDocSet {
 	BBDocSet(List<DBCursor> cursors)
 	{
 		this.cursors = cursors;
-		for(DBCursor c : this.cursors) {
-			c.batchSize(MONGO_DB_BATCH_SIZE);
-		}
-		
 		currentCursor = 0;
 	}
 
-//	private static BBDocSet getInstance(List<DBCursor> cursors)
-//	{
-//		return new BBDocSet(cursors);
-//	}
-//	
-//	public static BBDocSet getInstance(DBCursor cursor)
-//	{
-//		return new BBDocSet(cursor);
-//	}
-//	
+	public static BBDocSet getInstance(List<DBCursor> cursors)
+	{
+		return new BBDocSet(cursors);
+	}
+	
+	public static BBDocSet getInstance(DBCursor cursor)
+	{
+		return new BBDocSet(cursor);
+	}
+	
 	
 	/**
 	 * Each time it is called it returns the next doc, or null if no more docs are found. 
@@ -99,10 +91,8 @@ public class BBDocSet {
 	public BBDocSet clone()
 	{
 		List<DBCursor> cursors_copy = new ArrayList<DBCursor>();
-		for(DBCursor c: cursors) {
+		for(DBCursor c: cursors)
 			cursors_copy.add( c.copy() );
-			c.batchSize(MONGO_DB_BATCH_SIZE);
-		}
 		
 		return new BBDocSet(cursors_copy);
 	}

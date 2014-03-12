@@ -14,7 +14,7 @@ import macsy.module.BaseModule;
  * Imports a set of text files into a blackboard.
  * 
  * Input:
- * INPUT_FILES=The path of a folder with text files to be used as input. Files in all subfolders will be added.
+ * INPUT_FILES=The path to text file(s). Files in all subfolders will be added.
  * 
  * Output:
  * OUTPUT_BLACKBOARD=The name of the BlackBoard that will be populated by docs.
@@ -30,51 +30,52 @@ public class ImportTextFiles extends BaseModule {
 	static final String PROPERTY_INPUT_FILES = "INPUT_FILES";
 	static final String FIELD_PATHNAME = "Path";
 	static final String FIELD_FILENAME = "Filename";
-
+	String outputContent;
+	
 	private  BlackBoard outputBB = null;
 	List<Integer> outputTagIDs = null;
 	int docsWritten = 0;
 	int filesRead = 0;
-
+	
 	private static String SEPARATOR;
 	{
 		SEPARATOR = System.getProperty("file.separator");
 	}
-
+	
 	public ImportTextFiles(String propertiesFilename ) throws Exception 
 	{
 		super(propertiesFilename);
 	}
 
-
-
+	
+	
 	public void runModuleCore() throws Exception 
 	{
-		if(MODULE_OUTPUT_FIELDS==null)
-			throw new Exception("You have to set the OUTPUT_FIELDS in settings file.");
-		if(MODULE_OUTPUT_BLACKBOARD==null)
-			throw new Exception("You have to set the OUTPUT_BLACKBOARD in settings file.");
+		String txtFilename = this.getProperty(PROPERTY_INPUT_FILES);
 
+		outputContent = this.MODULE_OUTPUT_FIELDS; 
+			
 		//Load Black Board of interest
 		outputBB = _bbAPI.blackBoardLoad(  MODULE_OUTPUT_BLACKBOARD );
 
-		//Prepare output TAGs
+		
+		
+		
+		//Prepare TAG 
+		String tagNames[] = MODULE_OUTPUT_TAGS.split(",");
 		outputTagIDs = new LinkedList<Integer>();
-		if(MODULE_OUTPUT_TAGS!=null)
+		for(String tagName : tagNames) 
 		{
-			String tagNames[] = MODULE_OUTPUT_TAGS.split(",");
-			for(String tagName : tagNames) 
-			{
-				int tagID = outputBB.getTagID(tagName);
-				if( tagID==0)
-					tagID = outputBB.insertNewTag(tagName);
-				outputTagIDs.add(tagID);
-			}
+			int tagID = outputBB.getTagID(tagName);
+			if( tagID==0)
+				tagID = outputBB.insertNewTag(tagName);
+			outputTagIDs.add(tagID);
 		}
-
-		String txtFilename = this.getProperty(PROPERTY_INPUT_FILES);
+		
+		
+		
 		readPath( txtFilename );
-
+		
 		this.saveModuleResults(filesRead, docsWritten);
 	}
 
@@ -82,7 +83,7 @@ public class ImportTextFiles extends BaseModule {
 	public void readPath(String startingPath) throws Exception
 	{
 		File path = new File( startingPath );
-
+		
 		String[] filenames = path.list();
 		for(String filename : filenames)
 		{
@@ -92,35 +93,35 @@ public class ImportTextFiles extends BaseModule {
 			else
 				readFileAndStoreDoc( filename, startingPath );
 		}
-
+	
 	}
-
+	
 	public void readFileAndStoreDoc(String filename, String pathname ) throws Exception
 	{		
 		filesRead++;
-
+		
 		BufferedReader input = new BufferedReader( new FileReader(pathname +SEPARATOR+ filename) );
 
-//		int linesRead = 0;
-
+		int linesRead = 0;
+		
 		StringBuilder txt = new StringBuilder();
-
+		
 		String line = null; 
 		while (( line = input.readLine()) != null)
 		{
-//			linesRead++;
+			linesRead++;
 			txt.append( line + "\n");
 		}
 		input.close();
 
 		BBDoc doc = new BBDoc();
-		doc.setField(MODULE_OUTPUT_FIELDS, txt.toString() );
+		doc.setField(outputContent, txt.toString() );
 		doc.setField(FIELD_PATHNAME, pathname );
 		doc.setField(FIELD_FILENAME, filename);
 		doc.setTags( outputTagIDs );
 		outputBB.insertNewDoc( doc );
 		docsWritten++;
-
+		
 		//Print out max 100 chars per document.
 		int maxL = txt.toString().length();
 		if( maxL > 100 )		
