@@ -13,8 +13,8 @@ import com.mongodb.DBObject;
  *   
  * @author Ilias Flaounas
  * 
- * @version     1.0                   
- * @since       2012-05-30
+ * @version     1.1                   
+ * @since       2014-03-12
  * 
  */
 public final class BBDocTagSet {

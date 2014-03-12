@@ -11,12 +11,15 @@ import com.mongodb.DBObject;
  * 
  * Functions in Black Boards that return set of docs, use this class as output. 
  *   
- * @author Ilias Flaounas
- * @since  2012-06-23
+ * @author Ilias Flaounas, Tom Welfare
+ * @version     1.1
+ * @since  2014-03-12
  *
  */
 public class BBDocSet {
 
+	private final int MONGO_DB_BATCH_SIZE = 50;	//Reduce number if cursor timeout events occur. 
+	
 	/**
 	 * A list of cursor results. 
 	 */
@@ -35,8 +38,10 @@ public class BBDocSet {
 	{
 		this.cursors =  new ArrayList<DBCursor>();
 
-		if(cursor!=null)
+		if(cursor!=null) {
+			cursor.batchSize(MONGO_DB_BATCH_SIZE);
 			cursors.add(cursor);
+		}
 
 		currentCursor = 0;
 	}
@@ -55,19 +60,23 @@ public class BBDocSet {
 	BBDocSet(List<DBCursor> cursors)
 	{
 		this.cursors = cursors;
+		for(DBCursor c : this.cursors) {
+			c.batchSize(MONGO_DB_BATCH_SIZE);
+		}
+		
 		currentCursor = 0;
 	}
 
-	public static BBDocSet getInstance(List<DBCursor> cursors)
-	{
-		return new BBDocSet(cursors);
-	}
-	
-	public static BBDocSet getInstance(DBCursor cursor)
-	{
-		return new BBDocSet(cursor);
-	}
-	
+//	private static BBDocSet getInstance(List<DBCursor> cursors)
+//	{
+//		return new BBDocSet(cursors);
+//	}
+//	
+//	public static BBDocSet getInstance(DBCursor cursor)
+//	{
+//		return new BBDocSet(cursor);
+//	}
+//	
 	
 	/**
 	 * Each time it is called it returns the next doc, or null if no more docs are found. 
@@ -91,8 +100,10 @@ public class BBDocSet {
 	public BBDocSet clone()
 	{
 		List<DBCursor> cursors_copy = new ArrayList<DBCursor>();
-		for(DBCursor c: cursors)
+		for(DBCursor c: cursors) {
 			cursors_copy.add( c.copy() );
+			c.batchSize(MONGO_DB_BATCH_SIZE);
+		}
 		
 		return new BBDocSet(cursors_copy);
 	}
