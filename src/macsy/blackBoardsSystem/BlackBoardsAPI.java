@@ -9,6 +9,7 @@ import java.util.Properties;
 import com.mongodb.DB;
 import com.mongodb.Mongo;
 import com.mongodb.MongoURI;
+import com.mongodb.ReadPreference;
 
 /**
  * This class is the entry point for the Black Board (BB) API.
@@ -31,9 +32,9 @@ import com.mongodb.MongoURI;
  * Version 1.31 - Bug fixes
  * Version 1.32 - Update to support Mongo 2.2.0
  * 
- * @author      Ilias Flaounas <iliasfl@gmail.com>
- * @version     1.31
- * @since       2011-12-01
+ * @author      Ilias Flaounas, Tom Welfare
+ * @version     1.32
+ * @since       2014-03-12
  * 
  */
 public final class BlackBoardsAPI {
@@ -64,7 +65,7 @@ public final class BlackBoardsAPI {
 	 * Should not be used for any other reason. 
 	 * 
 	 */
-	private static DB mongo_db = null;
+	private DB mongo_db = null;
 
 //	/**
 //	 * Returns a direct connection to the Database.
@@ -83,15 +84,15 @@ public final class BlackBoardsAPI {
 	private static final String API_ADMIN_USERNAME = "dbadmin";
 	
 
-	/**
-	 * Mask for disabling all BBs. 
-	 */
-	public final static int USE_BB_NONE		= 	0;
+//	/**
+//	 * Mask for disabling all BBs. 
+//	 */
+//	public final static int USE_BB_NONE		= 	0;
 	
-	/**
-	 * Mask for enabling all BBs. 
-	 */
-	public final static int USE_BB_ALL		= 	0xFFFFFFFF;
+//	/**
+//	 * Mask for enabling all BBs. 
+//	 */
+//	public final static int USE_BB_ALL		= 	0xFFFFFFFF;
 
 	
 	/**
@@ -105,19 +106,11 @@ public final class BlackBoardsAPI {
 	private List<String> BBProtectedNames = null; 
 	
 	//All user BBs are prefixed with this
-	private String USER_BB_PREFIX = "MODULE_BB_";
+	private String USER_BB_PREFIX = "";
 	
-	/**
-	 * Creates the API object that provides access to specific Black Boards.
-	 * 
-	 * @param dbsettingsFileName This is the path and the filename of the settings file that contains 
-	 * connection settings.
-	 * @param bbToUse Defines Which BBs are going to be used. For example to use Articles and Feeds BBs
-	 *  you should set this parameter to  "BlackBoardsAPI.USE_BB_ARTICLES | BlackBoardsAPI.USE_BB_FEEDS".
-	 * @param adminMode Set to true iff you are an administrator.
-	 * @throws Exception
-	 */
- 	public BlackBoardsAPI(String dbsettingsFileName,  boolean adminMode) throws Exception 
+//	private boolean FORCE_READ_PRIMARIES = false;
+	
+ 	public BlackBoardsAPI(String dbsettingsFileName,  boolean adminMode, boolean forceReadPrimaries) throws Exception 
 	{
 		System.out.println("Initializing NewsAgentAPI...");
 
@@ -128,6 +121,8 @@ public final class BlackBoardsAPI {
 		BBProtectedNames.add("URL");
 		BBProtectedNames.add("MODULE");
 		BBProtectedNames.add("MODULE_RUN");
+		//BBProtectedNames.add("GEONAMES");
+		
 
 		String dburl  = "mongodb://127.0.0.1:27017";
 		String dbname = "Macsy";
@@ -165,6 +160,13 @@ public final class BlackBoardsAPI {
 		
 		//SELECT DATABASE
 		mongo_db = mongo_connection.getDB( dbname );
+		
+	//	FORCE_READ_PRIMARIES = forceReadPrimaries;
+		if(forceReadPrimaries)
+			mongo_db.setReadPreference(ReadPreference.primary());
+		else
+			mongo_db.setReadPreference(ReadPreference.secondaryPreferred());
+
 
 		//SET READ SLAVE-OK for all 
 	//	mongo_db.setReadPreference( ReadPreference.SECONDARY );
@@ -202,23 +204,46 @@ public final class BlackBoardsAPI {
 //		if((bbToUse & USE_BB_GEONAMES ) > 0 )
 //			geonames 	= new BlackBoardGeonames(	mongo_db, adminMode);
 
-		System.out.println("DONE");		
+		System.out.println("DONE");			
 	}
-
-
+	
+ 	/**
+ 	 * Force reading only primaries and not seconderies.   
+ 	 */
+ 	public void forceReadPrimaries() {
+		mongo_db.setReadPreference(ReadPreference.primary());
+ 	}
+ 	
 	/**
 	 * Creates the API object that provides access to specific Black Boards.
-	 *  
-	 * @param propertyFileName This is the path and the filename of the settings file that contains 
+	 * 
+	 * @param dbsettingsFileName This is the path and the filename of the settings file that contains 
 	 * connection settings.
 	 * @param bbToUse Defines Which BBs are going to be used. For example to use Articles and Feeds BBs
 	 *  you should set this parameter to  "BlackBoardsAPI.USE_BB_ARTICLES | BlackBoardsAPI.USE_BB_FEEDS".
-	 *  
+	 * @param adminMode Set to true iff you are an administrator.
+	 * @throws Exception
 	 */
-	public BlackBoardsAPI(String propertyFileName,  int bbToUse) throws Exception
+ 	public BlackBoardsAPI(String dbsettingsFileName,  boolean adminMode) throws Exception 
 	{
-		this(propertyFileName,  false);
+ 		this(dbsettingsFileName, adminMode, false);
 	}
+
+
+
+//	/**
+//	 * Creates the API object that provides access to specific Black Boards.
+//	 *  
+//	 * @param propertyFileName This is the path and the filename of the settings file that contains 
+//	 * connection settings.
+//	 * @param bbToUse Defines Which BBs are going to be used. For example to use Articles and Feeds BBs
+//	 *  you should set this parameter to  "BlackBoardsAPI.USE_BB_ARTICLES | BlackBoardsAPI.USE_BB_FEEDS".
+//	 *  
+//	 */
+//	public BlackBoardsAPI(String propertyFileName,  int bbToUse) throws Exception
+//	{
+//		this(propertyFileName,  false);
+//	}
 
 	/**
 	 * Creates an instance of the API with access to all basic Black Boards, i.e. 
@@ -263,7 +288,7 @@ public final class BlackBoardsAPI {
 		else
 		{
 			fullBB =  USER_BB_PREFIX + BBname;
-			bbType = BlackBoard.getBlackBoardType(mongo_db, fullBB);	//Discover BB Type
+			bbType = BlackBoard.getBlackBoardType(mongo_db, fullBB, null);	//Discover BB Type or set to some default if value is not set.
 		}
 		
 		if(bbType.equals( BlackBoard.BLACKBOARD_TYPE_DATE_BASED  ))
@@ -284,16 +309,17 @@ public final class BlackBoardsAPI {
 	{
 		if(BBname.contains("$") || BBname.contains(" ") )
 			throw new Exception("Wrong chars in BBname");
-			
+		
 		String bbPrefix = USER_BB_PREFIX;
 		if( BBProtectedNames.contains( BBname) )
 			bbPrefix = "";
 		
-		
-		
-		
 		String fullBB = bbPrefix + BBname;
 		
+		String 	bbType = BlackBoard.getBlackBoardType(mongo_db, fullBB,	BlackBoard.BLACKBOARD_TYPE_DATE_BASED );	//Discover BB Type or set default to DataBased
+		
+		if(bbType.equals( BlackBoard.BLACKBOARD_TYPE_STANDARD ))
+			throw new Exception("Blackbord "+ BBname + " is Standard Type, not DateBased. Use blackBoardLoad() to load it, or fix its type.");
 		
 		BlackBoardDateBased bb = new BlackBoardDateBased(mongo_db, fullBB, adminMode);
 		return bb; 

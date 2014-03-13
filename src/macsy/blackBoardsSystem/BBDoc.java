@@ -1,8 +1,11 @@
 package macsy.blackBoardsSystem;
 
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+
+import org.bson.types.ObjectId;
 
 import com.mongodb.BasicDBObject;
 
@@ -11,9 +14,9 @@ import com.mongodb.BasicDBObject;
  * 
  * The BB functions return objects extended from this class.
  * 
- * @author      Ilias Flaounas <iliasfl@bris.ac.uk>
- * @version     1.0                   
- * @since       2011-12-01
+ * @author      Ilias Flaounas, Tom Welfare
+ * @version     1.1                   
+ * @since       2014-03-12
  * 
  */
 public class BBDoc extends Object
@@ -49,6 +52,20 @@ public class BBDoc extends Object
 		this.dataObject = clone.dataObject; 
 	}
 
+	/** 
+	 * Predefine date and ID of the Object 
+	 * */
+	public BBDoc(Date date)
+	{
+		ObjectId id = new ObjectId(date);
+		dataObject = new BasicDBObject();
+		dataObject.put( BlackBoard.DOC_ID, id);
+	}
+
+	public BBDoc(String id) {
+		dataObject = new BasicDBObject();
+		dataObject.put( BlackBoard.DOC_ID, id);
+	}
 
 
 
@@ -63,9 +80,13 @@ public class BBDoc extends Object
 	 * @return A List<Integer> with Tag IDs or null if empty.
 	 */
 	@SuppressWarnings("unchecked")
-	public List<Integer> 		getTagIDs()		
+	public List<Integer> getTagIDs()		
 	{	
-		return ( List<Integer> )dataObject.get( BlackBoard.DOC_TAGS ); 
+		List<Integer> tags = new LinkedList<Integer>();
+		List<Integer> t = ( List<Integer> )dataObject.get( BlackBoard.DOC_TAGS );
+		if(t!=null)
+			tags.addAll( t ); //Deep copy
+		return tags; 
 	}
 
 	/**
@@ -75,7 +96,13 @@ public class BBDoc extends Object
 	@SuppressWarnings("unchecked")
 	public List<Integer> getCtrlTagIDs()		
 	{	
-		return ( List<Integer> )dataObject.get( BlackBoard.DOC_FOR_TAGS ); 
+		List<Integer> tags = new LinkedList<Integer>();
+		List<Integer> t  = ( List<Integer> )dataObject.get( BlackBoard.DOC_FOR_TAGS );
+		
+		if(t!=null)
+			tags.addAll( t ); //Deep copy
+
+		return tags; 
 	}
 
 
@@ -86,17 +113,28 @@ public class BBDoc extends Object
 	@SuppressWarnings("unchecked")
 	public List<Integer> getAllTagIDs()		
 	{	
+		List<Integer> allTags = new LinkedList<Integer>();
+		
 		List<Integer> tags = ( List<Integer> )dataObject.get( BlackBoard.DOC_TAGS );
-		if(tags == null)
-			tags = new LinkedList<Integer>();
+		if(tags != null)
+			allTags.addAll(tags);
 
 		List<Integer> fortags = ( List<Integer> ) dataObject.get( BlackBoard.DOC_FOR_TAGS );
 		if(fortags!=null)
-			tags.addAll(fortags);
+			allTags.addAll(fortags);
 
-		return tags; 
+		return allTags; 
 	}
 
+	public boolean hasTag(int tagID)
+	{	
+		List<Integer> tags = getAllTagIDs();
+		for(Integer t: tags)
+			if (t.equals(tagID))
+				return true;
+		return false;
+	}
+	
 //	public void setID(Object ID) 				{	this.ID = ID;		}
 //	public void setDate(Date date) 				{	this.date = date;	}
 //	public void setTags(List<Integer> tagIDs)	{	this.tagIDs= tagIDs;	}
@@ -269,7 +307,7 @@ public class BBDoc extends Object
 		List<Integer> tags = getAllTagIDs();
 		tags.remove( (Object) new Integer(tagID));	//to avoid tread tagID as index in list.
 		
-		this.setTags(tags);
+		setTags(tags);
 	}
 	
 	/**
@@ -277,13 +315,17 @@ public class BBDoc extends Object
 	 * Assumes a non-control tag.
 	 * 
 	 * @param tagID
+	 * @throws Exception 
 	 */
-	public void addTag(int tagID)
+	public void addTag(int tagID) throws Exception
 	{
-		List<Integer> tags = getAllTagIDs();
+		List<Integer> tags = getTagIDs();
 		
 		if(tags.contains(tagID))
 			return;
+		
+		if(tagID<=0)
+			throw new Exception("TagID should be >0");
 		
 		tags.add( tagID );
 		
@@ -315,6 +357,11 @@ public class BBDoc extends Object
 			oldList.add( fieldValue );
 		
 		setField(fieldName, oldList);
+	}
+
+	
+	public Date getIDasDate() {
+		return new Date(dataObject.getObjectId( BlackBoard.DOC_ID ).getTime()); 
 	}
 
 }

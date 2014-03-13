@@ -4,12 +4,6 @@ import macsy.blackBoardsSystem.BBDoc;
 import macsy.blackBoardsSystem.BlackBoard;
 import macsy.blackBoardsSystem.BlackBoardsAPI;
 
-/**
-* @author      Ilias Flaounas <iliasfl@gmail.com>
-* @version     1.0                   
-* @since       2012-11-01
-* 
-*/
 public class TestMacsy {
 
 	/**

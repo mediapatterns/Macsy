@@ -1,11 +1,18 @@
 package macsy.module;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
+
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 
 import macsy.blackBoardsSystem.BlackBoardsAPI;
 
@@ -26,9 +33,12 @@ public abstract class BaseModule {
 	 * Version of BaseModule 
 	 */
 	public static String MODACLE_VERSION = "0.01";
+	
+	private DBObject MODULE_SETTINGS = new BasicDBObject();
+	private List<String> COMMON_SETTINGS = new LinkedList<String>();
 
 	//MODULE NAME
-	public String	DB_SETTINGS = "DB_SETTINGS_FILENAME" ;
+	public String	DB_SETTINGS = "" ;
 	public String	MODULE_NAME = "ModuleName";
 	public String 	MODULE_DESC = "Description of the module";
 	public String	MODULE_INPUT_BLACKBOARD = "Test_in";	
@@ -138,7 +148,6 @@ public abstract class BaseModule {
 	}
 
 
-
 	/**
 	 * Executes the module. This is a three phase process:
 	 * Some initialization is made first,including the storing of the current timestamp;
@@ -193,7 +202,8 @@ public abstract class BaseModule {
 				MODULE_INPUT_FIELDS,
 				MODULE_OUTPUT_BLACKBOARD,
 				MODULE_OUTPUT_TAGS,
-				MODULE_OUTPUT_FIELDS);
+				MODULE_OUTPUT_FIELDS,
+				MODULE_SETTINGS);
 
 
 
@@ -249,19 +259,55 @@ public abstract class BaseModule {
 		properties = new Properties();
 		properties.load( new FileInputStream( fileDesc ));
 		
-		
+		COMMON_SETTINGS.add(PROPERTY_DB_SETTINGS);
 		//Update standard properties
 		DB_SETTINGS = properties.getProperty(PROPERTY_DB_SETTINGS);
 
-		MODULE_NAME			 	= 					properties.getProperty(PROPERTY_MODULE_NAME);
-		MODULE_DESC 			= 					properties.getProperty(PROPERTY_MODULE_DESC);
-		MODULE_DATA_PROCESS_LIMIT= Integer.parseInt(properties.getProperty(PROPERTY_DATA_PROCESS_LIMIT));
+		COMMON_SETTINGS.add(PROPERTY_MODULE_NAME);
+		MODULE_NAME = "Macsy Module";
+		if(properties.getProperty(PROPERTY_MODULE_NAME)!=null)
+			MODULE_NAME	= properties.getProperty(PROPERTY_MODULE_NAME);
+			
+		COMMON_SETTINGS.add(PROPERTY_MODULE_DESC);
+		MODULE_DESC = "A macsy module without description...";
+		if(properties.getProperty(PROPERTY_MODULE_DESC)!=null)
+			MODULE_DESC = properties.getProperty(PROPERTY_MODULE_DESC);
+		
+		COMMON_SETTINGS.add(PROPERTY_DATA_PROCESS_LIMIT);
+		MODULE_DATA_PROCESS_LIMIT= 0;
+		if(properties.getProperty(PROPERTY_DATA_PROCESS_LIMIT)!=null)
+			MODULE_DATA_PROCESS_LIMIT = Integer.parseInt(properties.getProperty(PROPERTY_DATA_PROCESS_LIMIT));
+		
 		MODULE_INPUT_BLACKBOARD = 					properties.getProperty(PROPERTY_INPUT_BLACKBOARD);
 		MODULE_INPUT_TAGS 		= 					properties.getProperty(PROPERTY_INPUT_TAGS);
 		MODULE_INPUT_FIELDS 	= 					properties.getProperty(PROPERTY_INPUT_FIELDS);
 		MODULE_OUTPUT_BLACKBOARD= 					properties.getProperty(PROPERTY_OUTPUT_BLACKBOARD);
 		MODULE_OUTPUT_TAGS 		= 					properties.getProperty(PROPERTY_OUTPUT_TAGS);
 		MODULE_OUTPUT_FIELDS	= 					properties.getProperty(PROPERTY_OUTPUT_FIELDS);
+		
+		COMMON_SETTINGS.add(PROPERTY_INPUT_BLACKBOARD);
+		COMMON_SETTINGS.add(PROPERTY_INPUT_TAGS);
+		COMMON_SETTINGS.add(PROPERTY_INPUT_FIELDS);
+		COMMON_SETTINGS.add(PROPERTY_OUTPUT_BLACKBOARD);
+		COMMON_SETTINGS.add(PROPERTY_OUTPUT_TAGS);
+		COMMON_SETTINGS.add(PROPERTY_OUTPUT_FIELDS);
+		
+		@SuppressWarnings("resource")
+		BufferedReader in
+		   = new BufferedReader(new FileReader(propertiesFileName));
+		String line = null;
+		String PropertyName = null;
+		Object PropertyValue = null;
+		
+		while((line = in.readLine()) != null){
+			String toks[] = line.split("=");
+			PropertyName = toks[0];
+			if(toks.length > 1 &&
+					!COMMON_SETTINGS.contains(PropertyName)){
+				PropertyValue = toks[1];
+				MODULE_SETTINGS.put(PropertyName, PropertyValue);
+			}
+		}
 	}
 
 
