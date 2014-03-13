@@ -5,16 +5,13 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.mongodb.DBObject;
+
 import macsy.blackBoardsSystem.BBDoc;
 import macsy.blackBoardsSystem.BlackBoard;
 import macsy.blackBoardsSystem.BlackBoardsAPI;
 
-/**
-* @author      Ilias Flaounas <iliasfl@gmail.com>
-* @version     1.0                   
-* @since       2012-11-01
-* 
-*/
+
 public class BaseModuleDAO {
 
 //	private	DB mongo_db = null;
@@ -41,6 +38,8 @@ public class BaseModuleDAO {
 	private final String FIELD_MODULE_RUN_COMMENT					= "COM";
 	private final String FIELD_MODULE_RUN_USER						= "U";
 	private final String FIELD_MODULE_RUN_SERVER					= "S";
+	
+	private final String FIELD_MODULE_SETTINGS  					= "Settings";
 
 
 
@@ -107,7 +106,8 @@ public class BaseModuleDAO {
 			String inputFields,
 			String outputBBName,
 			String outputTags,
-			String outputFields) 
+			String outputFields,
+			DBObject settings) 
 	throws Exception
 	{	
 		if(		(moduleName==null) ||
@@ -138,7 +138,8 @@ public class BaseModuleDAO {
 					inputFields,
 					outputBBName,
 					outputTags,
-					outputFields);
+					outputFields,
+					settings);
 		}
 		else
 		{
@@ -150,9 +151,9 @@ public class BaseModuleDAO {
 					inputFields,
 					outputBBName,
 					outputTags,
-					outputFields);
+					outputFields,
+					settings);
 		}
-
 	}
 
 
@@ -179,7 +180,8 @@ public class BaseModuleDAO {
 			String inputFields,
 			String outputBBName,
 			String outputTags,
-			String outputFields
+			String outputFields,
+			DBObject settings
 	) 
 	throws Exception
 	{
@@ -206,8 +208,8 @@ public class BaseModuleDAO {
 		mod.setField(FIELD_MODULE_OUTPUT_BBNAME, outputBBName );
 		mod.setField(FIELD_MODULE_OUTPUT_TAGS, outputTags );
 		mod.setField(FIELD_MODULE_OUTPUT_FIELDS, outputFields );
-
-
+		
+		mod.setField(FIELD_MODULE_SETTINGS, settings);
 
 		//collModules.insert(doc);
 		bbModules.insertNewDoc(mod);
@@ -225,7 +227,8 @@ public class BaseModuleDAO {
 			String inputFields,
 			String outputBBName,
 			String outputTags,
-			String outputFields) 
+			String outputFields,
+			DBObject settings) 
 	throws Exception
 	{
 //		DBObject m = collModules.findOne(new BasicDBObject(FIELD_MODULE_ID, modID));
@@ -247,7 +250,8 @@ public class BaseModuleDAO {
 		bbModules.addFieldToDoc(modID, FIELD_MODULE_OUTPUT_TAGS, outputTags );
 		bbModules.addFieldToDoc(modID, FIELD_MODULE_OUTPUT_FIELDS, outputFields );
 
-
+		bbModules.addFieldToDoc(modID, FIELD_MODULE_SETTINGS, settings);
+		
 		return ;
 	}
 

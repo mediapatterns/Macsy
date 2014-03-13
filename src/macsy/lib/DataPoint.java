@@ -13,15 +13,10 @@ import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 
-/**
-* @author      Ilias Flaounas <iliasfl@gmail.com>
-* @version     1.0                   
-* @since       2012-11-01
-* 
-*/
+
 @SuppressWarnings("unchecked")
-public class DataPoint extends Object implements Comparable {
-	private int ID;	// Unique ID to identify this DataPoint from other datapoints.
+public class DataPoint extends Object implements Comparable<Object> {
+	private Object ID;	// Unique ID to identify this DataPoint from other datapoints.
 	private int RealLabel = UNKNOWN_LABEL; // Used for classification := Ground Truth
 	private int PredictedLabel = UNKNOWN_LABEL;  // Used for classification := Predicted Label
 	private Double PredictedLabel_Value = null;  // Used for classification := Predicted Label
@@ -72,11 +67,16 @@ public class DataPoint extends Object implements Comparable {
 	 * @param features_map
 	 */
 	public DataPoint(Map<Integer,Double> features_map) {
-		FeaturesMap_ = features_map;
+		FeaturesMap_ = new TreeMap<Integer,Double> (features_map);
 		setRealLabel(UNKNOWN_LABEL);
 		Features_Map2String();
 	}
 
+	public DataPoint() {
+		this(new TreeMap<Integer,Double>());
+	}
+	
+	
 	/**
 	 * The input feature string has NO label. 
 	 * It is set in here to UNKNOWN_LABEL.
@@ -489,11 +489,11 @@ public class DataPoint extends Object implements Comparable {
 		return PredictedLabel_Value;
 	}
 	
-	public void setID(int iD) {
+	public void setID(Object iD) {
 		ID = iD;
 	}
 
-	public int getID() {
+	public Object getID() {
 		return ID;
 	}
 
@@ -502,7 +502,7 @@ public class DataPoint extends Object implements Comparable {
 	 * Get Features Map
 	 * used inside package in DataSet class
 	 */
-	Map<Integer,Double> getFeaturesMap() 
+	public Map<Integer,Double> getFeaturesMap() 
 	{
 		if(FeaturesMap_==null)
 			Features_String2Map();
@@ -526,6 +526,51 @@ public class DataPoint extends Object implements Comparable {
 		if(FeaturesMap_==null)
 			Features_String2Map();
 		return FeaturesMap_.get(featureID);
+	}
+	
+	/**
+	 * Computes the difference between two points
+	 * 
+	 * new data = X - Y  = X.features - Y.features 
+	 * 
+	 * @param Y : the DataPoint for the difference
+	 * @return the difference
+	 */
+	//TODO:One parsing should be enough since maps are order
+	
+	public static DataPoint difference(DataPoint x, DataPoint y)
+	{
+		Map<Integer,Double> feat = new TreeMap<Integer,Double>();
+		int index;
+		double value;
+		
+		//First parse get common values or values in x
+		for (Map.Entry<Integer, Double> e : x.getFeaturesMap().entrySet()) {
+			int x_key = 	e.getKey();
+			double x_value = 	e.getValue();
+
+			Double y_value = y.FeaturesMap_.get(x_key);
+			if(y_value==null)
+				y_value = new Double(0);
+			
+			index = (int) x_key;
+			value = (x_value - y_value);
+			feat.put(index, value);
+		}
+
+		/// second parse get values in local point that do not exist in X
+		for (Map.Entry<Integer, Double> e : y.FeaturesMap_.entrySet()) {
+			int y_key =  e.getKey();
+
+			if(!x.getFeaturesMap().containsKey(y_key))
+			{
+				index = (int) y_key;
+				value = -e.getValue();
+				feat.put(index, value);
+			}
+		}
+
+		return new DataPoint(feat);
 	}
 	
 
