@@ -1,11 +1,8 @@
 package macsy.lib.onlineLearning;
 
 import java.io.IOException;
-import macsy.lib.DataPoint;
-import macsy.lib.LinearModel;
 
-
-
+import macsy.lib.*;
 
 
 public interface OnlineLearning {
@@ -21,8 +18,9 @@ public interface OnlineLearning {
 	
 	/**
 	 * Sets the positive margin (tau) equal to the input margin
+	 * @throws Exception 
 	 */
-	void setPosMargin(double margin);
+	void setPosMargin(double margin) throws Exception;
 	
 	/**
 	 * Sets the negative margin (tau) equal to the input margin
@@ -32,8 +30,7 @@ public interface OnlineLearning {
 	/**
 	 * Uses the DataPoint x as a sample and the x.getRealLabel() as label.
 	 */
-	void train(DataPoint x) throws Exception;
-        
+	void train(DataPoint x) throws Exception;;
 	
 	/**
 	 * Predicts the label/value of x based on the learned model.
@@ -49,9 +46,6 @@ public interface OnlineLearning {
 	 * @param filename
 	 */
 	void saveModel(String filename) throws IOException;
-
-
-       
 	
 	/**
 	 * This function stores the header for the statistics to a file 
@@ -65,8 +59,8 @@ public interface OnlineLearning {
 	 * Loads the model and the statistics
 	 * @param filename
 	 */
-	
-        void loadModel(String filename);
+	void loadModel(String filename);
+
 	/**
 	 * Returns the model used in the algorithm 
 	 * @return the model
@@ -158,6 +152,8 @@ public interface OnlineLearning {
 	 */
 	void expMovAvSetWindow(int windowSize) throws Exception;
 	
+	void update_exponentialMovingAverageError(boolean wasThereError) throws Exception;
+	
 	/**
 	 * Resets the error of moving Av Errors = 1.0
 	 * @throws Exception
@@ -170,6 +166,7 @@ public interface OnlineLearning {
 	 * @throws Exception
 	 */
 	double expMovAvGetError() throws Exception;
+	double expMovAvGetValidationError() throws Exception;
 	
 	/**
 	 * Returns the exponential moving average for the counter of the positive instances
@@ -212,14 +209,14 @@ public interface OnlineLearning {
 	
 	public void incrementN_overall(int addNumber);
 
-      
+	public void update_validationError(double prediction, int realLabel) throws Exception;
 
-        void saveLog(String filename) throws IOException;
+	double[] getValidationConfusion();
 
-        public long[] getStatisticsMatrix();
+	int getNValidation();
 
+	int getNneg();
 
-
-        
+	int getNpos();
 
 }

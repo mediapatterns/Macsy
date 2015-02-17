@@ -18,7 +18,7 @@ import macsy.blackBoardsSystem.BlackBoard;
 import macsy.blackBoardsSystem.BlackBoardDateBased;
 import macsy.lib.preprocessing.NGPreprocessing;
 import macsy.module.featuresExtractorTFIDF.NGIndexer;
-import macsy.module.onlineClassifier.OnlineClassifier_StorageLayer;
+import macsy.module.onlineClassification.OnlineClassifier_StorageLayer;
 
 import org.bson.types.ObjectId;
 
