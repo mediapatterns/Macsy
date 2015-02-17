@@ -64,9 +64,11 @@ public class BlackBoardDateBased extends BlackBoard {
 	/**
 	 * Constructor
 	 * 
-	 * @param mongo_database
+	 * @param dbConnection
+	 *            The mongo database
 	 * @param blackBoardName
-	 * @param BulkJob
+	 * @param adminMode
+	 *            Is this a bulk job?
 	 * @throws Exception
 	 */
 	public BlackBoardDateBased(DB dbConnection, String blackBoardName,
@@ -164,25 +166,15 @@ public class BlackBoardDateBased extends BlackBoard {
 		indexedFields.add(DOC_FOR_TAGS);
 		indexedFields.add(DOC_ID);
 		ensureIndex(indexedFields);
- 
-		/*indexedFields = new LinkedList<String>();
-		String hash = getHashField();
-		if (hash != null && !hash.equals("")) {
-			indexedFields.add(hash);
-			ensureIndex(indexedFields);
-		}*/
+
+		/*
+		 * indexedFields = new LinkedList<String>(); String hash =
+		 * getHashField(); if (hash != null && !hash.equals("")) {
+		 * indexedFields.add(hash); ensureIndex(indexedFields); }
+		 */
 
 		System.out.println("DONE indexes");
 
-	}
-
-	private String getHashField() {
-		if (BB_NAME.contains("ARTICLE")) {
-			return "HSH";
-		} else if (BB_NAME.contains("TWEET")) {
-			return "H";
-		}
-		return "HSH";
 	}
 
 	/**
@@ -497,16 +489,16 @@ public class BlackBoardDateBased extends BlackBoard {
 		if (tagID <= 0)
 			throw new Exception("TagID should be >0");
 
-		if (getTagProperty(tagID, TAG_PROPERTY_CONTROL) == -1) {
-			getCollDocs(getYearOfInterestByDocID(docID)).update(
-					new BasicDBObject(DOC_ID, docID),
-					new BasicDBObject("$addToSet", new BasicDBObject(DOC_TAGS,
-							tagID)));
-		} else {
+		if (getTagProperty(tagID, TAG_PROPERTY_CONTROL) == 1) {
 			getCollDocs(getYearOfInterestByDocID(docID)).update(
 					new BasicDBObject(DOC_ID, docID),
 					new BasicDBObject("$addToSet", new BasicDBObject(
 							DOC_FOR_TAGS, tagID)));
+		} else {
+			getCollDocs(getYearOfInterestByDocID(docID)).update(
+					new BasicDBObject(DOC_ID, docID),
+					new BasicDBObject("$addToSet", new BasicDBObject(DOC_TAGS,
+							tagID)));
 		}
 	}
 
@@ -698,8 +690,119 @@ public class BlackBoardDateBased extends BlackBoard {
 			query.put(DOC_ID, new BasicDBObject("$lt", toID));
 
 		query.put(fieldName, fieldValue);
-		System.out.println(query);
+		// System.out.println(query);
 		DBCursor res = getCollDocs(YearOfInterest).find(query);
+
+		return new BBDocSet(res);
+	}
+
+	
+	public BBDocSet findMostRecentDocsByFieldValueSet(Date fromDate, Date toDate,
+			String fieldName, Object fieldValue, Integer maxDocs)
+			throws Exception {
+		GregorianCalendar cal = new GregorianCalendar();
+		cal.setTime(fromDate);
+		int YearOfInterest = cal.get(Calendar.YEAR);
+
+		// SEARCH DB
+		BasicDBObject query = new BasicDBObject();
+
+		ObjectId fromID = null;
+		ObjectId toID = null;
+		if (fromDate != null)
+			fromID = new ObjectId(fromDate);
+		if (toDate != null)
+			toID = new ObjectId(toDate);
+		if ((fromID != null) && (toID != null)) {
+			int fromYear = getYearOfInterestByDocID(fromID);
+			int toYear = getYearOfInterestByDocID(toID);
+			if (fromYear != toYear)
+				throw new Exception(
+						"Year field of fromDate and toDate must be equal");
+			YearOfInterest = fromYear;
+			BasicDBObject range = new BasicDBObject();
+			range.put("$gte", fromID);
+			range.put("$lt", toID);
+			query.put(DOC_ID, range);
+		} else if (fromID != null)
+			query.put(DOC_ID, new BasicDBObject("$gte", fromID));
+		else if (toID != null)
+			query.put(DOC_ID, new BasicDBObject("$lt", toID));
+
+		query.put(fieldName, fieldValue);
+
+		 //System.out.println(query);
+
+		DBCursor res;
+		if (null != maxDocs) {
+			res = getCollDocs(YearOfInterest).find(query).sort(new BasicDBObject(DOC_ID, ORDER_RECENT_FIRST)).limit(maxDocs);
+		} else {
+			res = getCollDocs(YearOfInterest).find(query).sort(new BasicDBObject(DOC_ID, ORDER_RECENT_FIRST));
+		}
+
+		return new BBDocSet(res);
+	}
+
+	
+	/**
+	 * Returns a set of docs within selected time period, and with fieldName
+	 * having a specific value, up to the maximum number of docs.
+	 * 
+	 * @param fromDate
+	 *            Begin of time period of interest.
+	 * @param toDate
+	 *            End of time period of interest.
+	 * @param fieldName
+	 *            The name of field of interest.
+	 * @param fieldValue
+	 *            The value we want to have the field of interest
+	 * @param maxDocs
+	 *            The maximum number of documents to return
+	 * @return A BBDocSet
+	 * @throws Exception
+	 */
+	public BBDocSet findDocsByFieldValueSet(Date fromDate, Date toDate,
+			String fieldName, Object fieldValue, Integer maxDocs)
+			throws Exception {
+		GregorianCalendar cal = new GregorianCalendar();
+		cal.setTime(fromDate);
+		int YearOfInterest = cal.get(Calendar.YEAR);
+
+		// SEARCH DB
+		BasicDBObject query = new BasicDBObject();
+
+		ObjectId fromID = null;
+		ObjectId toID = null;
+		if (fromDate != null)
+			fromID = new ObjectId(fromDate);
+		if (toDate != null)
+			toID = new ObjectId(toDate);
+		if ((fromID != null) && (toID != null)) {
+			int fromYear = getYearOfInterestByDocID(fromID);
+			int toYear = getYearOfInterestByDocID(toID);
+			if (fromYear != toYear)
+				throw new Exception(
+						"Year field of fromDate and toDate must be equal");
+			YearOfInterest = fromYear;
+			BasicDBObject range = new BasicDBObject();
+			range.put("$gte", fromID);
+			range.put("$lt", toID);
+			query.put(DOC_ID, range);
+		} else if (fromID != null)
+			query.put(DOC_ID, new BasicDBObject("$gte", fromID));
+		else if (toID != null)
+			query.put(DOC_ID, new BasicDBObject("$lt", toID));
+
+		query.put(fieldName, fieldValue);
+
+		// System.out.println(query);
+
+		DBCursor res;
+		if (null != maxDocs) {
+			res = getCollDocs(YearOfInterest).find(query).limit(maxDocs);
+		} else {
+			res = getCollDocs(YearOfInterest).find(query);
+		}
 
 		return new BBDocSet(res);
 	}
@@ -916,7 +1019,7 @@ public class BlackBoardDateBased extends BlackBoard {
 			for (int year = fromYear; year <= toYear; year++) {
 				DBCursor res = findDocsByFieldsTagsSetFullYear(year,
 						withFields, withoutFields, withTags, withoutTags,
-						maxArticles, ORDER_NONE);
+						maxArticles, ORDER_OLD_FIRST);
 
 				results.add(res);
 			}
@@ -928,7 +1031,7 @@ public class BlackBoardDateBased extends BlackBoard {
 			if (fromYear == toYear) {
 				DBCursor r = findDocsByFieldsTagsSetSingleYear(fromDate,
 						toDate, withFields, withoutFields, withTags,
-						withoutTags, maxArticles, ORDER_NONE);
+						withoutTags, maxArticles, ORDER_OLD_FIRST);
 
 				// return returnType.cast(new BBDocSet(r) );
 				return new BBDocSet(r);
@@ -942,13 +1045,13 @@ public class BlackBoardDateBased extends BlackBoard {
 
 			results.add(findDocsByFieldsTagsSetSingleYear(fromDate,
 					endFirstYear, withFields, withoutFields, withTags,
-					withoutTags, maxArticles, ORDER_NONE));
+					withoutTags, maxArticles, ORDER_OLD_FIRST));
 
 			// B) sum all full years
 			for (int year = fromYear + 1; year <= toYear - 1; year++) {
 				results.add(findDocsByFieldsTagsSetFullYear(year, withFields,
 						withoutFields, withTags, withoutTags, maxArticles,
-						ORDER_NONE));
+						ORDER_OLD_FIRST));
 			}
 
 			// C) rest of year
@@ -957,7 +1060,7 @@ public class BlackBoardDateBased extends BlackBoard {
 
 			results.add(findDocsByFieldsTagsSetSingleYear(startFinalYear,
 					toDate, withFields, withoutFields, withTags, withoutTags,
-					maxArticles, ORDER_NONE));
+					maxArticles, ORDER_OLD_FIRST));
 
 		}
 
@@ -997,11 +1100,11 @@ public class BlackBoardDateBased extends BlackBoard {
 	 * @param withTags
 	 * @param withoutTags
 	 * @param maxArticles
-	 * @return
+	 * @return DBCursor
 	 * @throws Exception
 	 */
-	DBCursor findDocsByFieldsTagsSetSingleYear(Date fromDate, Date toDate,
-			List<String> withFields, List<String> withoutFields,
+	private DBCursor findDocsByFieldsTagsSetSingleYear(Date fromDate,
+			Date toDate, List<String> withFields, List<String> withoutFields,
 			List<Integer> withTags, List<Integer> withoutTags, int maxArticles,
 			int order) throws Exception {
 		if (withTags != null && withoutTags != null)
@@ -1157,10 +1260,10 @@ public class BlackBoardDateBased extends BlackBoard {
 	 * @param maxArticles
 	 * @param order
 	 *            : 0 = no order / -1 recent first / 1 old first
-	 * @return
+	 * @return DBCursor
 	 * @throws Exception
 	 */
-	DBCursor findDocsByFieldsTagsSetFullYear(int yearOfInterest,
+	private DBCursor findDocsByFieldsTagsSetFullYear(int yearOfInterest,
 			List<String> withFields, List<String> withoutFields,
 			List<Integer> withTags, List<Integer> withoutTags, int maxArticles,
 			int order) throws Exception {
@@ -1422,7 +1525,7 @@ public class BlackBoardDateBased extends BlackBoard {
 	 * @param toDate
 	 * @param withTags
 	 * @param withoutTags
-	 * @return
+	 * @return count
 	 * @throws Exception
 	 */
 	public long countDocs2(Date fromDate, Date toDate, List<Integer> withTags,
@@ -1730,7 +1833,7 @@ public class BlackBoardDateBased extends BlackBoard {
 	 * Checks if index on field "fieldName" exists. If it doesn't it creates it.
 	 * This runs for all Years
 	 * 
-	 * @param fieldName
+	 * @param fieldNames
 	 *            The name of the field to be indexed.
 	 * @throws Exception
 	 */
