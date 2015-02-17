@@ -218,5 +218,4 @@ public interface OnlineLearning {
 	int getNneg();
 
 	int getNpos();
-
 }

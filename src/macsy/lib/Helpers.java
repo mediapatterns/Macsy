@@ -464,7 +464,6 @@ public class Helpers {
 	 */
 
 	public static String controlTagType(String tag) {
-
 		if (0 == tag.indexOf("POST>"))
 			return "POST";
 		if (0 == tag.indexOf("FOR>"))
@@ -540,7 +539,6 @@ public class Helpers {
 			+ "LearningFactor \t" + "Bias \t " + "l2norm\t ";
 
 	// labels for classification/ranking
-
 	public final static int LABEL_POS_CLASS = 1;
 	public final static String LABEL_POS_CLASS_STRING = "POSITIVE";
 	public final static int LABEL_NEG_CLASS = -1;
@@ -566,23 +564,6 @@ public class Helpers {
 
 	public final static Double NB_BYTES_FOR_HASH = 12.0;
 
-	// feeds for classification
-
-	public final static Integer BBC_SPORT_OTHER = 3790;
-	public final static Integer BBC_SPORT_HOME = 3893;
-	public final static Integer BBC_TOP_STORIES = 3813;
-	public final static Integer BBC_ENTERTAINMENT = 78;
-	public final static Integer BBC_POLITICS = 3818;
-	public final static Integer BBC_TECHNOLOGY = 2117;
-	public final static Integer BBC_EDUCATION = 3816;
-	public final static Integer BBC_SCIENCE = 3815;
-
-
-	// feeds for ranking
-	public final static Integer BBC_HOME_PAGE = 9;
-	public final static Integer NPR_HOME = 1306;
-	public final static Integer SEATTLE_HOME = 1290;
-
 	public enum InputFeedForRanking {
 		BBC(Helpers.BBC_HOME_PAGE), NPR(Helpers.NPR_HOME), SEATTLE(
 				Helpers.SEATTLE_HOME);
@@ -593,11 +574,6 @@ public class Helpers {
 			this.id = id;
 		}
 	};
-
-	// tags for modules
-	public final static String TAG_CTRL_INPUT = "FOR>FBN_TESTING2012";
-	public final static String TAG_CTRL_PROCESSING = "POST>FBN_TESTING2012";
-	public final static String TAG_LABEL_SPORT = "FBN>SPORT2012";
 
 	public enum ModuleMode {
 		PREDEPLOYEMENT, PRODUCTION, EXPERIMENT;
